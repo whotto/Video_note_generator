@@ -4,7 +4,7 @@ import re
 import shutil
 import urllib
 from tkinter import Listbox
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 import openai
 import whisper
@@ -14,6 +14,7 @@ from src.adapter.unsplash import UnsplashAdapter
 from src.downloader.downloader import download_video, download_image
 from src.logger import app_logger
 from src.platform.platfrom import Platform
+from src.video.audio import extract_audio_to_mp3
 from src.video.prompt import share_prompt
 
 
@@ -30,15 +31,7 @@ class VideoNoteGenerator:
         self.platform = Platform()
         self.whisper_model = None
 
-    async def process_video_full(self, url: str) -> List[str]:
-        """处理视频链接，生成笔记
-
-        Args:
-            url (str): 视频链接
-
-        Returns:
-            List[str]: 生成的笔记文件路径列表
-        """
+    async def process_video_full(self, url: str) -> Tuple[str, str, str, str, List[str]]:
         app_logger.info('📹 [完整流程]开始处理视频...')
         # Create temporary folder
         temp_dir = os.path.join(self.output_dir, 'temp')
@@ -53,68 +46,55 @@ class VideoNoteGenerator:
             result = download_video(platform_type=platform.type, url=url, temp_dir=temp_dir)
             if not result:
                 app_logger.warning(f"⚠️ 视频下载失败，返回为空: {url}")
-                return []
+                return '⚠️ 视频下载失败', '', '', '', []
 
             audio_path, video_info = result
             if not audio_path or not video_info:
                 app_logger.warning(f"⚠️ 视频下载失败，音轨或视频信息返回为空: {url}")
-                return []
+                return '⚠️ 视频下载失败，音轨或视频信息返回为空', '', '', '', []
 
             app_logger.info(f"✅ 视频下载成功: {video_info['title']}")
 
-            # Transcribe audio
-            app_logger.info('🎙️ 正在转录音频...')
-            app_logger.info('⚠️ 注意：转录音频可能需要几分钟时间，请耐心等待...')
-            transcript = self._transcribe_audio(audio_path)
-            if not transcript:
-                app_logger.warning(f"⚠️ 音频转录失败，返回为空: {url}")
-                return []
-
-            # Save origin transcript
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            original_file = os.path.join(self.output_dir, f"{timestamp}_original.md")
-            with open(original_file, 'w', encoding='utf-8') as f:
-                f.write(f"# {video_info['title']}\n\n")
-                f.write(f"## 视频信息\n")
-                f.write(f"- 作者：{video_info['uploader']}\n")
-                f.write(f"- 时长：{video_info['duration']}秒\n")
-                f.write(f"- 平台：{video_info['platform']}\n")
-                f.write(f"- 链接：{url}\n\n")
-                f.write(f"## 原始转录内容\n\n")
-                f.write(transcript)
-
-            # Organize long content
-            app_logger.info('📝 正在整理长文版本...')
-            organized_content = await self._organize_long_content(transcript, int(video_info['duration']))
-            organized_file = os.path.join(self.output_dir, f"{timestamp}_organized.md")
-            with open(organized_file, 'w', encoding='utf-8') as f:
-                f.write(f"# {video_info['title']} - 整理版\n\n")
-                f.write(f"## 视频信息\n")
-                f.write(f"- 作者：{video_info['uploader']}\n")
-                f.write(f"- 时长：{video_info['duration']}秒\n")
-                f.write(f"- 平台：{video_info['platform']}\n")
-                f.write(f"- 链接：{url}\n\n")
-                f.write(f"## 内容整理\n\n")
-                f.write(organized_content)
-
-            # Rednote content
-            output_file_path = os.path.join(self.output_dir, f"{timestamp}_xiaohongshu.md")
-            rednote_content = await self.gen_rednote_version(organized_content, output_file_path)
-            if not rednote_content:
-                app_logger.warning(f"⚠️ 小红书版本生成失败，返回为空: {url}")
-                return [original_file, organized_file]
-            app_logger.info(f"✅ 小红书版本生成成功: {output_file_path}")
-            return [original_file, organized_file, output_file_path]
-        except Exception as e:
-            app_logger.error(f"⚠️ 视频处理失败: {str(e)}")
-            return []
+            return await self.process_video_path(audio_path, temp_dir)
         finally:
             # Clear temporary files
             app_logger.info('🗑️ 正在清理临时文件...')
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
 
+    async def process_video_organized(self, content: bytes) -> Tuple[str, str, str, str, List[str]]:
+        try:
+            content_str = content.decode('utf-8')
+            if not content_str:
+                content_str = content.decode('gbk')
+            rednote_content, images = await self.gen_rednote_version(content_str)
+            return '✅ 处理成功', '-', content_str, rednote_content, images
+        except Exception as e:
+            app_logger.error(f"⚠️ 视频处理失败: {str(e)}")
+            return '⚠️ 视频处理失败', '', '', '', []
 
+    async def process_video_path(self, file_path: str, temp_dir: str) -> Tuple[str, str, str, str, List[str]]:
+        try:
+            # create temp audio file use file_path last path without extension
+            audio_path = os.path.join(temp_dir, os.path.basename(file_path).split('.')[0] + '.mp3')
+            extract_audio_to_mp3(file_path, audio_path)
+
+            # Transcribe audio
+            app_logger.info('🎙️ 正在转录音频...')
+            app_logger.info('⚠️ 注意：转录音频可能需要几分钟时间，请耐心等待...')
+            transcript = self._transcribe_audio(audio_path)
+            if not transcript:
+                app_logger.warning(f"⚠️ 音频转录失败，返回为空")
+                return '⚠️ 音频转录失败', '', '', '', []
+
+            # Organize long content
+            app_logger.info('📝 正在整理长文版本...')
+            organized_content = await self._organize_long_content(transcript)
+
+            return await self.process_video_organized(organized_content.encode('utf-8'))
+        except Exception as e:
+            app_logger.error(f"⚠️ 视频处理失败: {str(e)}")
+            return '⚠️ 视频处理失败', '', '', '', []
 
     def load_whisper_model(self):
         """加载Whisper模型"""
@@ -127,60 +107,20 @@ class VideoNoteGenerator:
             app_logger.warning(f"⚠️ Whisper model loading failed: {str(e)}")
             app_logger.info("Will retry loading later...")
 
-    async def gen_rednote_version(self, organized_content: str, output_file_path: str) -> str:
+    async def gen_rednote_version(self, organized_content: str) -> Tuple[str, List[str]]:
         """Generate rednote version"""
         app_logger.info('📝 正在整理小红书风格笔记...')
         try:
             rednote_content, titles, tags, images = await self._convert_to_xiaohongshu(organized_content)
-            # 保存小红书版本
-            xiaohongshu_file = os.path.join(output_file_path)
-            # 写入文件
-            with open(xiaohongshu_file, "w", encoding="utf-8") as f:
-                # 写入标题
-                f.write(f"# {titles[0]}\n\n")
-
-                # 如果有图片，先写入第一张作为封面
-                if images:
-                    f.write(f"![封面图]({images[0]})\n\n")
-
-                # 写入正文内容的前半部分
-                content_parts = rednote_content.split('\n\n')
-                mid_point = len(content_parts) // 2
-
-                # 写入前半部分
-                f.write('\n\n'.join(content_parts[:mid_point]))
-                f.write('\n\n')
-
-                # 如果有第二张图片，插入到中间
-                if len(images) > 1:
-                    f.write(f"![配图]({images[1]})\n\n")
-
-                # 写入后半部分
-                f.write('\n\n'.join(content_parts[mid_point:]))
-
-                # 如果有第三张图片，插入到末尾
-                if len(images) > 2:
-                    f.write(f"\n\n![配图]({images[2]})")
-
-                # 写入标签
-                if tags:
-                    f.write("\n\n---\n")
-                    f.write("\n".join([f"#{tag}" for tag in tags]))
-                app_logger.info(f"✅ 小红书风格笔记已生成：{xiaohongshu_file}")
-
-                # 下载图片到 self.output_dir
-                # 图片使用时间戳+序号命名，加png后缀
-                for i, image in enumerate(images, 1):
-                    image_path = f"{xiaohongshu_file}_{i}.png"
-                    urllib.request.urlretrieve(image, image_path)
-                    app_logger.info(f"✅ 图片下载成功：{image_path}")
-
-                return xiaohongshu_file
+            # 全文
+            full_content = f"# {titles[0]}\n\n{rednote_content}\n\n---\n"
+            full_content = full_content + "\n".join([f"#{tag}" for tag in tags])
+            return full_content, images
         except Exception as e:
             app_logger.error(f"❌ 生成小红书风格笔记失败: {e}")
             import traceback
             print(f"错误详情:\n{traceback.format_exc()}")
-            return ''
+            return '', []
 
     def _transcribe_audio(self, audio_path: str, language: str = 'zh', prompt: str = '以下是一段视频的转录内容。请用流畅的中文输出。') -> str:
         """Transcribe audio use Whisper"""
