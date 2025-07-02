@@ -24,16 +24,44 @@ import argparse
 # 加载环境变量
 load_dotenv()
 
+# AI 提供者配置
+# 用户可以在 .env 文件中设置 AI_PROVIDER 来选择 AI 服务
+# 可选值为 "google" 或 "openrouter" (默认为 "openrouter" 如果未指定)
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'openrouter').lower()
+
 # 检查必要的环境变量
-required_env_vars = {
-    'OPENROUTER_API_KEY': '用于OpenRouter API',
-    'OPENROUTER_API_URL': '用于OpenRouter API',
-    'OPENROUTER_APP_NAME': '用于OpenRouter API',
-    'OPENROUTER_HTTP_REFERER': '用于OpenRouter API',
-    'UNSPLASH_ACCESS_KEY': '用于图片搜索',
-    'UNSPLASH_SECRET_KEY': '用于Unsplash认证',
-    'UNSPLASH_REDIRECT_URI': '用于Unsplash回调'
+base_required_env_vars = {
+    'UNSPLASH_ACCESS_KEY': '用于图片搜索 (必须)',
+    'UNSPLASH_SECRET_KEY': '用于Unsplash认证 (必须)',
+    'UNSPLASH_REDIRECT_URI': '用于Unsplash回调 (必须)'
 }
+
+provider_specific_env_vars = {}
+if AI_PROVIDER == 'openrouter':
+    provider_specific_env_vars = {
+        'OPENROUTER_API_KEY': '用于OpenRouter API',
+        # 'OPENROUTER_API_URL': '用于OpenRouter API (通常默认为 https://openrouter.ai/api/v1)',
+        # 'OPENROUTER_APP_NAME': '用于OpenRouter API (可选)',
+        # 'OPENROUTER_HTTP_REFERER': '用于OpenRouter API (可选)',
+    }
+    # 确保 OPENROUTER_API_URL 有默认值
+    os.environ.setdefault('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1')
+elif AI_PROVIDER == 'google':
+    provider_specific_env_vars = {
+        'GOOGLE_API_KEY': '用于 Google AI Gemini API'
+    }
+else:
+    # This case should ideally not be reached if AI_PROVIDER has a default and is validated.
+    # However, as a fallback, assume openrouter if AI_PROVIDER is somehow invalid at this stage.
+    print(f"⚠️ AI_PROVIDER 设置为 '{AI_PROVIDER}'，这是一个无效的值。请在 .env 文件中将其设置为 'google' 或 'openrouter'。将默认使用 OpenRouter (如果已配置)。")
+    AI_PROVIDER = 'openrouter'
+    provider_specific_env_vars = {
+        'OPENROUTER_API_KEY': '用于OpenRouter API',
+    }
+    os.environ.setdefault('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1')
+
+
+required_env_vars = {**base_required_env_vars, **provider_specific_env_vars}
 
 missing_env_vars = []
 for var, desc in required_env_vars.items():
@@ -41,11 +69,17 @@ for var, desc in required_env_vars.items():
         missing_env_vars.append(f"  - {var} ({desc})")
 
 if missing_env_vars:
-    print("注意：以下环境变量未设置：")
+    print("错误：以下必要的环境变量未设置：")
     print("\n".join(missing_env_vars))
-    print("\n将使用基本功能继续运行（无AI优化和图片）。")
-    print("如需完整功能，请在 .env 文件中设置相应的 API 密钥。")
-    print("继续处理...\n")
+    print(f"\n请根据您选择的 AI 提供者 ({AI_PROVIDER}) 在 .env 文件中设置相应的 API 密钥。")
+    if AI_PROVIDER == 'google' and 'GOOGLE_API_KEY' in [v.split(' ')[0] for v in missing_env_vars]:
+        print("您选择了 AI_PROVIDER='google'，但 GOOGLE_API_KEY 未设置。")
+    elif AI_PROVIDER == 'openrouter' and 'OPENROUTER_API_KEY' in [v.split(' ')[0] for v in missing_env_vars]:
+         print("您选择了 AI_PROVIDER='openrouter' (或默认)，但 OPENROUTER_API_KEY 未设置。")
+    print("程序将退出。")
+    sys.exit(1)
+
+print(f"✅ AI Provider 已选择: {AI_PROVIDER.upper()}")
 
 # 配置代理
 http_proxy = os.getenv('HTTP_PROXY')
@@ -59,35 +93,71 @@ proxies = {
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# OpenRouter configuration
-openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-openrouter_app_name = os.getenv('OPENROUTER_APP_NAME', 'video_note_generator')
-openrouter_http_referer = os.getenv('OPENROUTER_HTTP_REFERER', 'https://github.com')
-openrouter_available = False
+# AI Client and Model Configuration
+openrouter_client = None
+google_gemini_client = None
+AI_MODEL_NAME = None
+ai_client_available = False
 
-# 配置 OpenAI API
-client = openai.OpenAI(
-    api_key=openrouter_api_key,
-    base_url="https://openrouter.ai/api/v1",
-    default_headers={
-        "HTTP-Referer": openrouter_http_referer,
-        "X-Title": openrouter_app_name,
-    }
-)
+if AI_PROVIDER == 'openrouter':
+    openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
+    openrouter_app_name = os.getenv('OPENROUTER_APP_NAME', 'video_note_generator')
+    openrouter_http_referer = os.getenv('OPENROUTER_HTTP_REFERER', 'https://github.com')
+    openrouter_api_url = os.getenv('OPENROUTER_API_URL') # Already has default from above
 
-# 选择要使用的模型
-AI_MODEL = "google/gemini-pro"  # 使用 Gemini Pro 模型
+    if openrouter_api_key:
+        openrouter_client = openai.OpenAI(
+            api_key=openrouter_api_key,
+            base_url=openrouter_api_url,
+            default_headers={
+                "HTTP-Referer": openrouter_http_referer,
+                "X-Title": openrouter_app_name,
+            }
+        )
+        try:
+            print(f"正在测试 OpenRouter API 连接 (模型列表)...")
+            openrouter_client.models.list()
+            print("✅ OpenRouter API 连接测试成功")
+            ai_client_available = True
+            AI_MODEL_NAME = os.getenv('OPENROUTER_MODEL', "openai/gpt-3.5-turbo") # Default OpenRouter model
+            print(f"✅ OpenRouter 模型已设置为: {AI_MODEL_NAME}")
+        except Exception as e:
+            print(f"⚠️ OpenRouter API 连接测试失败: {str(e)}")
+            print("如果您希望使用OpenRouter，请检查您的API密钥和网络连接。")
+            # Proceeding, but AI functions relying on OpenRouter might fail.
+    else:
+        print("⚠️ OpenRouter API Key 未设置。如果选择OpenRouter作为AI Provider，相关功能将不可用。")
 
-# Test OpenRouter connection
-if openrouter_api_key:
-    try:
-        print(f"正在测试 OpenRouter API 连接...")
-        response = client.models.list()  # 使用更简单的API调用来测试连接
-        print("✅ OpenRouter API 连接测试成功")
-        openrouter_available = True
-    except Exception as e:
-        print(f"⚠️ OpenRouter API 连接测试失败: {str(e)}")
-        print("将继续尝试使用API，但可能会遇到问题")
+elif AI_PROVIDER == 'google':
+    google_api_key = os.getenv('GOOGLE_API_KEY')
+    if google_api_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=google_api_key)
+            # Test connection by listing models (or a similar lightweight call if available)
+            # For Gemini, model listing might require specific permissions or might not be the best test.
+            # We'll assume configuration is successful if no immediate error.
+            # Actual model usage will confirm.
+            google_gemini_client = genai # Store the configured module
+            print("✅ Google AI Gemini API 配置初步成功 (SDK已加载)")
+            ai_client_available = True
+            AI_MODEL_NAME = os.getenv('GOOGLE_GEMINI_MODEL', "gemini-pro") # Default Google Gemini model
+            print(f"✅ Google Gemini 模型已设置为: {AI_MODEL_NAME}")
+        except ImportError:
+            print("⚠️ Google AI SDK (google-generativeai) 未安装。")
+            print("请运行 'pip install google-generativeai' 来安装它。")
+            print("Google AI Gemini 功能将不可用。")
+        except Exception as e:
+            print(f"⚠️ Google AI Gemini API 配置失败: {str(e)}")
+            print("请检查您的 GOOGLE_API_KEY 和网络连接。")
+            # Proceeding, but AI functions relying on Google Gemini might fail.
+    else:
+        print("⚠️ Google API Key 未设置。如果选择Google作为AI Provider，相关功能将不可用。")
+
+if not ai_client_available:
+    print("⚠️ AI客户端未能成功初始化。AI相关功能（内容整理、小红书版本生成等）将不可用。")
+    print("请检查您的 .env 文件中的 API 密钥配置和网络连接。")
+
 
 # 检查Unsplash配置
 unsplash_access_key = os.getenv('UNSPLASH_ACCESS_KEY')
@@ -137,7 +207,7 @@ class VideoNoteGenerator:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         
-        self.openrouter_available = openrouter_available
+        self.ai_client_available = ai_client_available # Use the global ai_client_available
         self.unsplash_client = unsplash_client
         self.ffmpeg_path = ffmpeg_path
         
@@ -153,6 +223,58 @@ class VideoNoteGenerator:
         
         # 日志目录
         self.log_dir = os.path.join(self.output_dir, 'logs')
+
+    def _call_gemini_api(self, system_prompt: str, user_prompt: str) -> Optional[str]:
+        """Helper function to call Google Gemini API."""
+        if not google_gemini_client or not AI_MODEL_NAME:
+            print("⚠️ Google Gemini client or model name not configured.")
+            return None
+        try:
+            print(f"🤖 Calling Google Gemini API (model: {AI_MODEL_NAME})...")
+            # Gemini API typically takes a list of Parts or string content.
+            # For system prompt like behavior, you might prepend it or use specific model features if available.
+            # Simple concatenation for now, or structured input if the model supports it well.
+            # Google's newer models might prefer a structured {role: "user", parts: [{text: "..."}]}
+            # For gemini-pro, a direct content generation with a combined prompt is common.
+
+            model = google_gemini_client.GenerativeModel(AI_MODEL_NAME)
+
+            # Constructing the prompt for Gemini.
+            # Gemini's API is slightly different. It doesn't have a direct "system" role in the same way as OpenAI.
+            # Often, instructions are part of the user prompt or handled by model tuning.
+            # We can prepend the system prompt to the user prompt.
+            full_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+            # Ensure the prompt is passed as a list of content parts if that's what the SDK expects
+            # For simple text, just passing the string might work.
+            # response = model.generate_content(full_prompt)
+
+            # A more robust way, mimicking chat, would be:
+            # chat = model.start_chat(history=[
+            #     {"role": "user", "parts": [{"text": system_prompt}]}, # Or treat system prompt as preamble
+            #     {"role": "model", "parts": [{"text": "Okay, I understand my role."}]} # Dummy model response
+            # ])
+            # response = chat.send_message(user_prompt)
+
+            # Let's try a direct generation approach, combining prompts
+            # This is a common way for models that don't explicitly differentiate system/user roles in API calls.
+            response = model.generate_content(full_prompt)
+
+            if response and response.text:
+                return response.text.strip()
+            elif response and response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                 # Handle cases where response.text might be empty but candidates are available
+                return response.candidates[0].content.parts[0].text.strip()
+            else:
+                print(f"⚠️ Google Gemini API returned an empty response or unexpected format.")
+                if response:
+                    print(f"Full response object: {response}")
+                return None
+        except Exception as e:
+            print(f"⚠️ Google Gemini API call failed: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return None
         os.makedirs(self.log_dir, exist_ok=True)
         
         # cookie目录
@@ -424,13 +546,12 @@ class VideoNoteGenerator:
 
     def _organize_content(self, content: str) -> str:
         """使用AI整理内容"""
-        try:
-            if not self.openrouter_available:
-                print("⚠️ OpenRouter API 未配置，将返回原始内容")
-                return content
+        if not ai_client_available:
+            print("⚠️ AI client not available. Returning original content.")
+            return content
 
-            # 构建系统提示词
-            system_prompt = """你是一位著名的科普作家和博客作者，著作等身，屡获殊荣，尤其在内容创作领域有深厚的造诣。
+        # 构建系统提示词
+        system_prompt = """你是一位著名的科普作家和博客作者，著作等身，屡获殊荣，尤其在内容创作领域有深厚的造诣。
 
 请使用 4C 模型（建立联系 Connection、展示冲突 Conflict、强调改变 Change、即时收获 Catch）为转录的文字内容创建结构。
 
@@ -452,31 +573,53 @@ Markdown格式要求：
 - 如有来源URL，使用文内链接形式
 - 保留原文中的Markdown格式图片链接"""
 
-            # 构建用户提示词
-            final_prompt = f"""请根据以下转录文字内容，创作一篇结构清晰、易于理解的博客文章。
+        # 构建用户提示词
+        user_prompt = f"""请根据以下转录文字内容，创作一篇结构清晰、易于理解的博客文章。
 
 转录文字内容：
 
 {content}"""
 
-            # 调用API
-            response = client.chat.completions.create(
-                model=AI_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": final_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=4000
-            )
+        try:
+            if AI_PROVIDER == 'google':
+                if not google_gemini_client:
+                    print("⚠️ Google AI Provider selected, but client not initialized. Returning original content.")
+                    return content
+                organized_text = self._call_gemini_api(system_prompt, user_prompt)
+                if organized_text:
+                    return organized_text
+                print("⚠️ _call_gemini_api returned None. Returning original content for _organize_content.")
+                return content
             
-            if response.choices:
-                return response.choices[0].message.content.strip()
-            
-            return content
+            elif AI_PROVIDER == 'openrouter':
+                if not openrouter_client:
+                    print("⚠️ OpenRouter AI Provider selected, but client not initialized. Returning original content.")
+                    return content
+
+                print(f"🤖 Calling OpenRouter API (model: {AI_MODEL_NAME})...")
+                response = openrouter_client.chat.completions.create(
+                    model=AI_MODEL_NAME,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=4000 # Consider if this needs adjustment for different models
+                )
+                if response.choices and response.choices[0].message and response.choices[0].message.content:
+                    return response.choices[0].message.content.strip()
+                else:
+                    print(f"⚠️ OpenRouter API returned an empty or unexpected response: {response}")
+                    return content
+            else:
+                # Should not happen due to checks at the beginning, but as a safeguard:
+                print(f"⚠️ Unknown AI_PROVIDER '{AI_PROVIDER}'. Returning original content.")
+                return content
 
         except Exception as e:
-            print(f"⚠️ 内容整理失败: {str(e)}")
+            print(f"⚠️ 内容整理失败 ({AI_PROVIDER} API): {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return content
 
     def split_content(self, text: str, max_chars: int = 2000) -> List[str]:
@@ -568,8 +711,8 @@ Markdown格式要求：
         if not content.strip():
             return ""
         
-        if not self.openrouter_available:
-            print("⚠️ OpenRouter API 不可用，将返回原始内容")
+        if not ai_client_available: # Check generic AI availability first
+            print("⚠️ AI client not available for long content organization. Returning original content.")
             return content
         
         content_chunks = self.split_content(content)
@@ -586,13 +729,12 @@ Markdown格式要求：
 
     def convert_to_xiaohongshu(self, content: str) -> Tuple[str, List[str], List[str], List[str]]:
         """将博客文章转换为小红书风格的笔记，并生成标题和标签"""
-        try:
-            if not self.openrouter_available:
-                print("⚠️ OpenRouter API 未配置，将返回原始内容")
-                return content, [], [], []
+        if not ai_client_available:
+            print("⚠️ AI client not available for Xiaohongshu conversion. Returning original content.")
+            return content, [], [], []
 
-            # 构建系统提示词
-            system_prompt = """你是一位专业的小红书爆款文案写作大师，擅长将普通内容转换为刷屏级爆款笔记。
+        # 构建系统提示词 (This prompt is quite long and detailed)
+        system_prompt = """你是一位专业的小红书爆款文案写作大师，擅长将普通内容转换为刷屏级爆款笔记。
 请将输入的内容转换为小红书风格的笔记，需要满足以下要求：
 
 1. 标题创作（重要‼️）：
@@ -671,28 +813,52 @@ Markdown格式要求：
 
 """
 
-            # 调用API
-            response = client.chat.completions.create(
-                model=AI_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=2000
-            )
+        try:
+            xiaohongshu_text_from_api = None
+            if AI_PROVIDER == 'google':
+                if not google_gemini_client:
+                    print("⚠️ Google AI Provider selected, but client not initialized for Xiaohongshu conversion.")
+                    return content, [], [], []
+                xiaohongshu_text_from_api = self._call_gemini_api(system_prompt, user_prompt)
             
-            if not response.choices:
-                raise Exception("API 返回结果为空")
+            elif AI_PROVIDER == 'openrouter':
+                if not openrouter_client:
+                    print("⚠️ OpenRouter AI Provider selected, but client not initialized for Xiaohongshu conversion.")
+                    return content, [], [], []
 
-            # 处理返回的内容
-            xiaohongshu_content = response.choices[0].message.content.strip()
-            print(f"\n📝 API返回内容：\n{xiaohongshu_content}\n")
+                print(f"🤖 Calling OpenRouter API for Xiaohongshu (model: {AI_MODEL_NAME})...")
+                response = openrouter_client.chat.completions.create(
+                    model=AI_MODEL_NAME,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=2000 # Consider if this needs adjustment
+                )
+                if response.choices and response.choices[0].message and response.choices[0].message.content:
+                    xiaohongshu_text_from_api = response.choices[0].message.content.strip()
+                else:
+                    print(f"⚠️ OpenRouter API returned an empty or unexpected response for Xiaohongshu: {response}")
+                    return content, [], [], []
+            else:
+                print(f"⚠️ Unknown AI_PROVIDER '{AI_PROVIDER}' for Xiaohongshu conversion.")
+                return content, [], [], []
+
+            if not xiaohongshu_text_from_api:
+                print("⚠️ AI API call returned no content for Xiaohongshu conversion.")
+                return content, [], [], []
+
+            print(f"\n📝 API返回内容 (Xiaohongshu)：\n{xiaohongshu_text_from_api}\n")
+
+            # Process the API response to extract title, tags, etc.
+            # (The existing logic for splitting and extracting should largely remain the same,
+            # operating on xiaohongshu_text_from_api)
             
             # 提取标题（第一行）
-            content_lines = xiaohongshu_content.split('\n')
+            # content_lines = xiaohongshu_text_from_api.split('\n') # Corrected: remove duplicate below
             titles = []
-            for line in content_lines:
+            for line in xiaohongshu_text_from_api.split('\n'): # Use the new variable
                 line = line.strip()
                 if line and not line.startswith('#') and '：' not in line and '。' not in line:
                     titles = [line]
@@ -701,7 +867,7 @@ Markdown格式要求：
             if not titles:
                 print("⚠️ 未找到标题，尝试其他方式提取...")
                 # 尝试其他方式提取标题
-                title_match = re.search(r'^[^#\n]+', xiaohongshu_content)
+                title_match = re.search(r'^[^#\n]+', xiaohongshu_text_from_api) # Use the new variable
                 if title_match:
                     titles = [title_match.group(0).strip()]
             
@@ -712,7 +878,7 @@ Markdown格式要求：
             
             # 提取标签（查找所有#开头的标签）
             tags = []
-            tag_matches = re.findall(r'#([^\s#]+)', xiaohongshu_content)
+            tag_matches = re.findall(r'#([^\s#]+)', xiaohongshu_text_from_api) # Use the new variable
             if tag_matches:
                 tags = tag_matches
                 print(f"✅ 提取到{len(tags)}个标签")
@@ -748,21 +914,7 @@ Markdown格式要求：
             
         try:
             # 将查询词翻译成英文以获得更好的结果
-            if self.openrouter_available:
-                try:
-                    response = client.chat.completions.create(
-                        model=AI_MODEL,
-                        messages=[
-                            {"role": "system", "content": "你是一个翻译助手。请将输入的中文关键词翻译成最相关的1-3个英文关键词，用逗号分隔。直接返回翻译结果，不要加任何解释。例如：\n输入：'保险理财知识'\n输出：insurance,finance,investment"},
-                            {"role": "user", "content": query}
-                        ],
-                        temperature=0.3,
-                        max_tokens=50
-                    )
-                    if response.choices:
-                        query = response.choices[0].message.content.strip()
-                except Exception as e:
-                    print(f"⚠️ 翻译关键词失败: {str(e)}")
+            translated_query = self._translate_text_for_image_search(query)
             
             # 使用httpx直接调用Unsplash API
             headers = {
@@ -771,7 +923,7 @@ Markdown格式要求：
             
             # 对每个关键词分别搜索
             all_photos = []
-            for keyword in query.split(','):
+            for keyword in translated_query.split(','): # Use translated_query
                 response = httpx.get(
                     'https://api.unsplash.com/search/photos',
                     params={
@@ -793,11 +945,11 @@ Markdown格式要求：
                         all_photos.extend(photos)
             
             # 如果收集到的图片不够，用最后一个关键词继续搜索
-            while len(all_photos) < count and query:
+            while len(all_photos) < count and translated_query: # Use translated_query
                 response = httpx.get(
                     'https://api.unsplash.com/search/photos',
                     params={
-                        'query': query.split(',')[-1].strip(),
+                        'query': translated_query.split(',')[-1].strip(), # Use translated_query
                         'per_page': count - len(all_photos),
                         'orientation': 'portrait',
                         'content_filter': 'high',
@@ -824,6 +976,55 @@ Markdown格式要求：
         except Exception as e:
             print(f"⚠️ 获取图片失败: {str(e)}")
             return []
+
+    def _translate_text_for_image_search(self, query: str) -> str:
+        """Helper function to translate text using the configured AI provider for image search."""
+        if not ai_client_available or not query:
+            print("⚠️ AI client not available for translation or empty query.")
+            return query # Return original query
+
+        system_prompt = "你是一个翻译助手。请将输入的中文关键词翻译成最相关的1-3个英文关键词，用逗号分隔。直接返回翻译结果，不要加任何解释。例如：\n输入：'保险理财知识'\n输出：insurance,finance,investment"
+        user_prompt = query
+
+        try:
+            translated_query = None
+            if AI_PROVIDER == 'google':
+                if not google_gemini_client:
+                    print("⚠️ Google AI Provider selected, but client not initialized for translation.")
+                    return query
+                translated_query = self._call_gemini_api(system_prompt, user_prompt)
+
+            elif AI_PROVIDER == 'openrouter':
+                if not openrouter_client:
+                    print("⚠️ OpenRouter AI Provider selected, but client not initialized for translation.")
+                    return query
+
+                print(f"🤖 Calling OpenRouter API for translation (model: {AI_MODEL_NAME})...") # Consider a smaller/cheaper model for translation
+                response = openrouter_client.chat.completions.create(
+                    model=AI_MODEL_NAME, # Ideally, a model suitable for translation
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=50
+                )
+                if response.choices and response.choices[0].message and response.choices[0].message.content:
+                    translated_query = response.choices[0].message.content.strip()
+            else:
+                print(f"⚠️ Unknown AI_PROVIDER '{AI_PROVIDER}' for translation.")
+                return query
+
+            if translated_query:
+                print(f"📝 Translated image search query from '{query}' to '{translated_query}'")
+                return translated_query
+            else:
+                print(f"⚠️ Translation failed, using original query: '{query}'")
+                return query
+
+        except Exception as e:
+            print(f"⚠️ 翻译关键词失败 ({AI_PROVIDER} API): {str(e)}")
+            return query # Fallback to original query
 
     def process_video(self, url: str) -> List[str]:
         """处理视频链接，生成笔记
@@ -898,7 +1099,10 @@ Markdown格式要求：
                 # 写入文件
                 with open(xiaohongshu_file, "w", encoding="utf-8") as f:
                     # 写入标题
-                    f.write(f"# {titles[0]}\n\n")
+                    if titles:
+                        f.write(f"# {titles[0]}\n\n")
+                    else:
+                        f.write(f"# 未能生成标题\n\n") # 提供一个默认标题或错误提示
                     
                     # 如果有图片，先写入第一张作为封面
                     if images:
