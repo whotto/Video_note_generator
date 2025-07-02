@@ -31,9 +31,9 @@ AI_PROVIDER = os.getenv('AI_PROVIDER', 'openrouter').lower()
 
 # 检查必要的环境变量
 base_required_env_vars = {
-    'UNSPLASH_ACCESS_KEY': '用于图片搜索 (可选)',
-    # 'UNSPLASH_SECRET_KEY': '用于Unsplash认证 (通常不需要)',
-    # 'UNSPLASH_REDIRECT_URI': '用于Unsplash回调 (通常不需要)'
+    'UNSPLASH_ACCESS_KEY': '用于图片搜索 (必须)',
+    'UNSPLASH_SECRET_KEY': '用于Unsplash认证 (必须)',
+    'UNSPLASH_REDIRECT_URI': '用于Unsplash回调 (必须)'
 }
 
 provider_specific_env_vars = {}
@@ -51,22 +51,20 @@ elif AI_PROVIDER == 'google':
         'GOOGLE_API_KEY': '用于 Google AI Gemini API'
     }
 else:
+    # This case should ideally not be reached if AI_PROVIDER has a default and is validated.
+    # However, as a fallback, assume openrouter if AI_PROVIDER is somehow invalid at this stage.
     print(f"⚠️ AI_PROVIDER 设置为 '{AI_PROVIDER}'，这是一个无效的值。请在 .env 文件中将其设置为 'google' 或 'openrouter'。将默认使用 OpenRouter (如果已配置)。")
-    AI_PROVIDER = 'openrouter' # 默认回退到 openrouter
+    AI_PROVIDER = 'openrouter'
     provider_specific_env_vars = {
         'OPENROUTER_API_KEY': '用于OpenRouter API',
-        os.environ.setdefault('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1')
     }
+    os.environ.setdefault('OPENROUTER_API_URL', 'https://openrouter.ai/api/v1')
 
 
 required_env_vars = {**base_required_env_vars, **provider_specific_env_vars}
 
 missing_env_vars = []
 for var, desc in required_env_vars.items():
-    # 对于可选的 Unsplash 密钥，如果不存在也不视为错误，但功能会受限
-    if 'UNSPLASH' in var and not os.getenv(var):
-        print(f"提示：环境变量 {var} ({desc}) 未设置，图片搜索功能将不可用。")
-        continue
     if not os.getenv(var):
         missing_env_vars.append(f"  - {var} ({desc})")
 
