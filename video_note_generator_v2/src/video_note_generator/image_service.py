@@ -114,35 +114,61 @@ class UnsplashImageService:
 
     def get_photos_for_xiaohongshu(
         self,
-        titles: List[str],
-        tags: List[str],
+        titles: List[str] = None,
+        tags: List[str] = None,
         count: int = 3,
-        ai_processor = None
+        ai_processor = None,
+        content: str = None
     ) -> List[str]:
         """
         为小红书笔记获取相关图片
 
         Args:
-            titles: 标题列表
-            tags: 标签列表
+            titles: 标题列表（已弃用，保留用于向后兼容）
+            tags: 标签列表（已弃用，保留用于向后兼容）
             count: 图片数量
-            ai_processor: AI 处理器（用于翻译）
+            ai_processor: AI 处理器（用于提取关键词）
+            content: 视频原始内容（优先使用）
 
         Returns:
             图片URL列表
         """
-        # 使用标题和标签作为搜索关键词
-        search_terms = titles + tags[:2] if tags else titles
-        search_query = ' '.join(search_terms)
+        search_query = None
 
-        # 如果有 AI 处理器，尝试翻译成英文
-        if ai_processor:
+        # 优先使用视频内容提取关键词（更准确）
+        if content and ai_processor:
             try:
-                english_query = ai_processor.translate_to_english(search_query)
-                if english_query:
-                    search_query = english_query
-                    self.logger.info(f"使用翻译后的关键词搜索: {search_query}")
+                self.logger.info("正在从视频内容提取图片搜索关键词...")
+                search_query = ai_processor.extract_image_keywords(content)
+                if search_query:
+                    self.logger.info(f"使用提取的关键词搜索: {search_query}")
             except Exception as e:
-                self.logger.warning(f"翻译关键词失败: {e}")
+                self.logger.warning(f"从内容提取关键词失败: {e}")
+
+        # 备用方案：使用标题和标签（向后兼容）
+        if not search_query:
+            if titles or tags:
+                self.logger.info("使用标题和标签作为搜索关键词（备用方案）")
+                search_terms = []
+                if titles:
+                    search_terms.extend(titles[:1])  # 只用第一个标题
+                if tags:
+                    search_terms.extend(tags[:2])  # 只用前两个标签
+                search_query = ' '.join(search_terms)
+
+                # 翻译成英文
+                if ai_processor:
+                    try:
+                        english_query = ai_processor.translate_to_english(search_query)
+                        if english_query:
+                            search_query = english_query
+                            self.logger.info(f"使用翻译后的关键词: {search_query}")
+                    except Exception as e:
+                        self.logger.warning(f"翻译关键词失败: {e}")
+
+        # 如果仍然没有搜索词，使用默认值
+        if not search_query:
+            self.logger.warning("无法生成搜索关键词，使用默认关键词")
+            search_query = "abstract,creative,colorful"
 
         return self.search_photos(search_query, count)

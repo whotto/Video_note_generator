@@ -208,3 +208,55 @@ Markdown格式要求：
         )
 
         return result
+
+    def extract_image_keywords(self, content: str) -> Optional[str]:
+        """
+        从内容中提取适合图片搜索的英文关键词
+
+        Args:
+            content: 视频内容文本
+
+        Returns:
+            英文关键词（逗号分隔）
+        """
+        system_prompt = """你是一个图片关键词提取专家。请从给定的视频内容中提取3-5个最核心的、适合图片搜索的英文关键词。
+
+要求：
+1. 关键词必须是具体的、可视化的名词或短语
+2. 优先提取主题、场景、物体、人物、活动等视觉元素
+3. 避免抽象概念，选择能找到相关图片的词汇
+4. 直接输出英文关键词，用逗号分隔
+5. 不要加任何解释或说明
+
+例如：
+内容：讲解Python编程基础，包括变量、函数和循环的使用
+输出：python programming,coding,computer,software development
+
+内容：介绍咖啡拉花技巧，如何制作完美的卡布奇诺
+输出：coffee art,cappuccino,barista,latte art,cafe
+
+内容：旅行vlog记录日本京都的寺庙和樱花
+输出：kyoto japan,temple,cherry blossom,japanese culture,travel"""
+
+        # 只使用前500字符来提取关键词
+        content_preview = content[:500] if len(content) > 500 else content
+
+        user_prompt = f"""请从以下内容中提取3-5个适合图片搜索的英文关键词：
+
+{content_preview}
+
+直接输出英文关键词（用逗号分隔）："""
+
+        result = self.generate_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.3,
+            max_tokens=100
+        )
+
+        if result:
+            # 清理结果，移除可能的多余字符
+            result = result.strip().strip('"\'')
+            self.logger.info(f"提取的图片搜索关键词: {result}")
+
+        return result

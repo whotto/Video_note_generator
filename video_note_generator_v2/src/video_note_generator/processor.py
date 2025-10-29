@@ -275,14 +275,15 @@ class VideoNoteProcessor:
                 max_tokens=self.settings.max_tokens
             )
 
-            # 获取图片
+            # 获取图片（使用视频原始内容提取关键词）
             images = []
-            if self.image_service and titles:
+            if self.image_service:
                 images = self.image_service.get_photos_for_xiaohongshu(
                     titles=titles,
                     tags=tags,
                     count=3,
-                    ai_processor=self.ai_processor
+                    ai_processor=self.ai_processor,
+                    content=content  # 传入原始内容，用于提取图片关键词
                 )
 
             # 格式化并保存

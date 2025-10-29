@@ -221,21 +221,5 @@ class BlogGenerator:
             flags=re.DOTALL
         ).strip()
 
-        # 在文章末尾添加元信息
-        footer = f"""
-
----
-
-**文章元信息**
-
-- 思想来源 (Source of Inspiration): {video_info.get('uploader', '未知创作者')}
-- 原始视频 (Original Video): {video_info.get('url', '')}
-- 视频平台 (Platform): {video_info.get('platform', '未知')}
-- 文章生成时间: {video_info.get('timestamp', '')}
-
----
-
-*本文由 AI 辅助创作，基于视频内容深度重构而成。*
-"""
-
-        return content_cleaned + footer
+        # 直接返回清理后的内容，不添加元信息
+        return content_cleaned
