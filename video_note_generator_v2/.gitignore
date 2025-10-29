@@ -1,0 +1,257 @@
+# ==========================================
+# Video Note Generator V2 - .gitignore
+# ==========================================
+
+# Python
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+# ==========================================
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+.virtualenv
+
+# IDE & Editors
+# ==========================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+# ==========================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+# ==========================================
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Testing
+# ==========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+*.cover
+*.py,cover
+.cache
+nosetests.xml
+coverage.xml
+*.coveragerc
+
+# Environment & Configuration
+# ==========================================
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+!.env.example
+.envrc
+.python-version
+
+# Logs
+# ==========================================
+logs/
+*.log
+*.log.*
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Cache & Temporary Files
+# ==========================================
+.cache/
+*.cache
+*.tmp
+*.temp
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Video & Audio Files
+# ==========================================
+# Downloaded media files
+*.mp3
+*.mp4
+*.wav
+*.m4a
+*.webm
+*.flv
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.aac
+*.ogg
+*.opus
+
+# Generated Output & Downloads
+# ==========================================
+generated_notes/
+temp_notes/
+output/
+downloads/
+temp_downloads/
+temp_audio/
+temp_video/
+
+# AI Model Cache
+# ==========================================
+# Whisper model cache
+~/.cache/whisper/
+.whisper/
+models/
+*.pt
+*.pth
+
+# Web Application
+# ==========================================
+# Static file uploads
+static/uploads/
+static/temp/
+
+# Session data
+sessions/
+.sessions/
+
+# Database (if any)
+*.db
+*.sqlite
+*.sqlite3
+
+# FastAPI / Uvicorn
+.uvicorn/
+
+# Documentation Build
+# ==========================================
+docs/_build/
+docs/_static/
+docs/_templates/
+site/
+
+# Jupyter Notebook
+# ==========================================
+.ipynb_checkpoints
+*.ipynb
+
+# Package Management
+# ==========================================
+# Poetry
+poetry.lock
+.poetry/
+
+# Pipenv
+Pipfile.lock
+
+# pdm
+.pdm.toml
+__pypackages__/
+
+# User-specific test files
+# ==========================================
+test_*.py
+test_*.md
+*_test.py
+*_test.md
+user_test_*.md
+quick_test.sh
+
+# Project-specific
+# ==========================================
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Notes and drafts
+NOTES.md
+TODO.md
+DRAFT.md
+
+# Cookies files (contain sensitive login information)
+# ==========================================
+cookies.txt
+*.cookies.txt
+cookies/
+*_cookies.txt

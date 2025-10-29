@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-note-generator"
+version = "2.0.0"
+description = "一键将视频转换为优质笔记，支持博客和小红书格式"
+authors = [
+    {name = "玄清", email = "grow8org@gmail.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+keywords = ["video", "note", "transcription", "whisper", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/whotto/Video_note_generator"
+Documentation = "https://github.com/whotto/Video_note_generator/tree/main/video_note_generator_v2"
+Repository = "https://github.com/whotto/Video_note_generator.git"
+"Bug Tracker" = "https://github.com/whotto/Video_note_generator/issues"
+
+[project.scripts]
+vnote = "video_note_generator.cli:main"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --cov=src/video_note_generator --cov-report=html --cov-report=term"

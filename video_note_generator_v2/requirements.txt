@@ -1,0 +1,48 @@
+# Video Note Generator V2 - Dependencies
+# Compatible with Python 3.8+
+# Tested on macOS, Linux, Windows
+
+# Core Dependencies
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# Video Download & Processing
+yt-dlp>=2024.10.0
+you-get>=0.4.1743
+
+# Subtitle Extraction
+youtube-transcript-api>=0.6.0
+
+# Audio Transcription
+openai-whisper>=20231117
+
+# AI Processing
+openai>=1.0.0
+
+# HTTP Client
+httpx>=0.24.1
+requests>=2.31.0
+
+# Command Line Interface
+click>=8.1.0
+rich>=13.0.0
+
+# Web Framework (FastAPI)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+jinja2>=3.1.2
+python-multipart>=0.0.6
+
+# Image Processing (Optional)
+Pillow>=10.1.0
+
+# FFmpeg Python Bindings (Optional)
+ffmpeg-python>=0.2.0
+
+# System Requirements:
+# - Python 3.8 or higher
+# - FFmpeg (must be installed separately)
+#   - macOS: brew install ffmpeg
+#   - Linux: apt-get install ffmpeg / yum install ffmpeg
+#   - Windows: Download from ffmpeg.org

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频笔记生成器 - AI驱动的视频笔记工具</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 主标题横幅 -->
+    <header class="main-header">
+        <h1>视频笔记生成器</h1>
+        <p>AI-POWERED VIDEO NOTE GENERATOR</p>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <h2>⚙️ 配置选项</h2>
+
+            <!-- API状态 -->
+            <div id="api-status" class="status-box">
+                <div class="loading">检查配置中...</div>
+            </div>
+
+            <hr>
+
+            <!-- 生成选项 -->
+            <h3>📝 生成内容</h3>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="gen-xiaohongshu" checked>
+                    <span>生成小红书笔记</span>
+                </label>
+                <p class="help-text">包含5个标题选项和配图</p>
+
+                <label>
+                    <input type="checkbox" id="gen-blog" checked>
+                    <span>生成博客文章</span>
+                </label>
+                <p class="help-text">深度叙事风格的长文</p>
+            </div>
+
+            <hr>
+
+            <!-- 统计信息 -->
+            <h3>📊 处理统计</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="stat-success">0</div>
+                    <div class="stat-label">成功</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="stat-failed">0</div>
+                    <div class="stat-label">失败</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- 清空历史按钮 -->
+            <button class="btn btn-secondary" onclick="clearHistory()">
+                🗑️ 清空历史
+            </button>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 标签页导航 -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('single')">
+                    📝 单个处理
+                </button>
+                <button class="tab-btn" onclick="switchTab('batch')">
+                    📚 批量处理
+                </button>
+                <button class="tab-btn" onclick="switchTab('history')">
+                    📜 历史记录
+                </button>
+            </div>
+
+            <!-- Tab 1: 单个处理 -->
+            <div id="tab-single" class="tab-content active">
+                <h3>输入视频链接</h3>
+
+                <div class="input-row">
+                    <input
+                        type="text"
+                        id="single-url"
+                        class="url-input"
+                        placeholder="粘贴 TikTok、抖音、YouTube 或 B站视频链接..."
+                    >
+                    <button class="btn btn-primary" onclick="processSingle()">
+                        🚀 开始生成
+                    </button>
+                </div>
+
+                <!-- 进度显示 -->
+                <div id="single-progress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="single-progress-bar"></div>
+                    </div>
+                    <p class="status-text" id="single-status">处理中...</p>
+                </div>
+
+                <!-- 结果显示 -->
+                <div id="single-result" class="result-container"></div>
+            </div>
+
+            <!-- Tab 2: 批量处理 -->
+            <div id="tab-batch" class="tab-content">
+                <h3>批量输入视频链接</h3>
+                <div class="info-box">
+                    💡 每行输入一个视频URL，支持同时处理多个视频
+                </div>
+
+                <textarea
+                    id="batch-urls"
+                    class="batch-textarea"
+                    placeholder="https://www.tiktok.com/@user/video/123...&#10;https://www.douyin.com/video/456...&#10;https://www.youtube.com/watch?v=789..."
+                ></textarea>
+
+                <div class="input-row">
+                    <button class="btn btn-primary" onclick="processBatch()">
+                        🚀 批量生成
+                    </button>
+                    <span id="batch-url-count" class="url-count"></span>
+                </div>
+
+                <!-- 进度显示 -->
+                <div id="batch-progress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="batch-progress-bar"></div>
+                    </div>
+                    <p class="status-text" id="batch-status">处理中...</p>
+                </div>
+
+                <!-- 批量结果 -->
+                <div id="batch-result" class="result-container"></div>
+            </div>
+
+            <!-- Tab 3: 历史记录 -->
+            <div id="tab-history" class="tab-content">
+                <h3>📜 处理历史</h3>
+                <div id="history-list" class="history-container">
+                    <div class="info-box">暂无处理记录</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <p>🎬 视频笔记生成器 v2.0 | Powered by OpenRouter & Gemini 2.5 Flash</p>
+        <p>支持平台: TikTok, 抖音, YouTube, Bilibili</p>
+        <p style="margin-top: 1rem; opacity: 0.8;">
+            © 2025 <a href="https://huanwang.org" target="_blank" style="color: #FF6B35; text-decoration: none;">huanwang.org</a> | All Rights Reserved
+        </p>
+    </footer>
+
+    <!-- Toast通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
