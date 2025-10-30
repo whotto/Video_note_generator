@@ -9,6 +9,7 @@ from .base import (
 )
 from .ytdlp_downloader import YtDlpDownloader
 from .bilibili_downloader import BilibiliDownloader
+from .res_downloader import ResDownloader
 
 __all__ = [
     'BaseDownloader',
@@ -17,4 +18,5 @@ __all__ = [
     'DownloaderRegistry',
     'YtDlpDownloader',
     'BilibiliDownloader',
+    'ResDownloader',
 ]

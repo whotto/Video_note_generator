@@ -8,7 +8,13 @@ from datetime import datetime
 import logging
 
 from .config import Settings
-from .downloader import DownloaderRegistry, YtDlpDownloader, BilibiliDownloader, VideoInfo
+from .downloader import (
+    DownloaderRegistry,
+    YtDlpDownloader,
+    BilibiliDownloader,
+    ResDownloader,
+    VideoInfo,
+)
 from .transcriber import WhisperTranscriber
 from .ai_processor import AIProcessor
 from .generators.xiaohongshu import XiaohongshuGenerator
@@ -41,7 +47,15 @@ class VideoNoteProcessor:
         )
         self.downloader_registry.register(bilibili_downloader)
 
-        # 注册通用下载器（作为备选）
+        # 注册基于 res-downloader 思路的通用下载器（抖音/小红书等）
+        res_downloader = ResDownloader(
+            logger=logger,
+            proxies=settings.get_proxies(),
+            cookie_file=settings.cookie_file
+        )
+        self.downloader_registry.register(res_downloader)
+
+        # 注册通用下载器（作为最终兜底）
         ytdlp_downloader = YtDlpDownloader(
             logger=logger,
             proxies=settings.get_proxies(),

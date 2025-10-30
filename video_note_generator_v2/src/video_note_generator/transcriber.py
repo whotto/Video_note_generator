@@ -122,15 +122,87 @@ class WhisperTranscriber:
         """
         if self._model is None or self._model_name != model_name:
             self.logger.info(f"正在加载 Whisper 模型: {model_name}")
+
+            # 检测并选择最佳设备
+            device = self._detect_device()
+            self.logger.info(f"使用设备: {device}")
+
             try:
-                self._model = whisper.load_model(model_name)
-                self._model_name = model_name
-                self.logger.info(f"Whisper 模型加载成功: {model_name}")
+                # 优先尝试 MPS (Apple Silicon GPU)
+                if device == "mps":
+                    try:
+                        self._model = whisper.load_model(model_name, device="mps")
+                        self._model_name = model_name
+                        self.logger.info(f"Whisper 模型加载成功: {model_name} (Apple Silicon GPU)")
+                        return self._model
+                    except Exception as mps_error:
+                        self.logger.warning(f"MPS加载失败，尝试CPU: {mps_error}")
+
+                # 尝试 CUDA (NVIDIA GPU)
+                elif device == "cuda":
+                    try:
+                        self._model = whisper.load_model(model_name, device="cuda")
+                        self._model_name = model_name
+                        self.logger.info(f"Whisper 模型加载成功: {model_name} (NVIDIA GPU)")
+                        return self._model
+                    except Exception as gpu_error:
+                        self.logger.warning(f"GPU加载失败，尝试CPU: {gpu_error}")
+
+                # 回退到CPU，并禁用FP16以避免兼容性问题
+                import torch
+                try:
+                    # 设置环境变量禁用FP16
+                    import os
+                    os.environ["WHISPER_DISABLE_FP16"] = "1"
+
+                    # 加载CPU模型
+                    self._model = whisper.load_model(model_name, device="cpu")
+                    self._model_name = model_name
+                    self.logger.info(f"Whisper 模型加载成功: {model_name} (CPU, FP32)")
+                except Exception as cpu_error:
+                    self.logger.error(f"CPU模型加载也失败: {cpu_error}")
+                    raise
+
             except Exception as e:
                 self.logger.error(f"Whisper 模型加载失败: {e}")
                 raise
 
         return self._model
+
+    def _detect_device(self) -> str:
+        """
+        检测可用的计算设备
+
+        Returns:
+            设备类型: "cuda"、"mps" 或 "cpu"
+        """
+        try:
+            import torch
+
+            # 优先检查 Apple Silicon MPS (Metal Performance Shaders)
+            if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                self.logger.info("检测到 Apple Silicon GPU (MPS)，将使用 GPU 加速")
+                return "mps"
+
+            # 检查CUDA是否可用 (NVIDIA GPU)
+            if torch.cuda.is_available():
+                # 检查GPU内存是否足够
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory
+                gpu_memory_gb = gpu_memory / (1024**3)
+
+                # 检查是否至少有4GB GPU内存
+                if gpu_memory_gb >= 4:
+                    self.logger.info(f"检测到NVIDIA GPU，内存: {gpu_memory_gb:.1f}GB")
+                    return "cuda"
+                else:
+                    self.logger.warning(f"GPU内存不足 ({gpu_memory_gb:.1f}GB < 4GB)，将使用CPU")
+            else:
+                self.logger.info("未检测到CUDA支持，将使用CPU")
+
+        except ImportError:
+            self.logger.info("PyTorch未安装，将使用CPU")
+
+        return "cpu"
 
     def transcribe(
         self,
@@ -165,6 +237,7 @@ class WhisperTranscriber:
 
         # 加载模型
         model = self._load_model(model_name)
+        device = self._detect_device()
 
         # 转录
         self.logger.info(f"正在转录音频: {audio_path}")
@@ -194,7 +267,37 @@ class WhisperTranscriber:
 
         except Exception as e:
             self.logger.error(f"音频转录失败: {e}")
-            raise
+
+            # 如果是 MPS 设备失败，尝试回退到 CPU
+            if device == "mps" and ("nan" in str(e).lower() or "inf" in str(e).lower() or "categorical" in str(e).lower()):
+                self.logger.warning("MPS 设备遇到兼容性问题，正在回退到 CPU...")
+
+                try:
+                    # 重新加载 CPU 模型
+                    import os
+                    os.environ["WHISPER_DISABLE_FP16"] = "1"
+
+                    # 强制重新加载模型
+                    self._model = None
+                    self._model_name = None
+                    cpu_model = whisper.load_model(model_name, device="cpu")
+
+                    self.logger.info("使用 CPU 重新转录...")
+                    result = cpu_model.transcribe(audio_path, **transcribe_options)
+                    text = result["text"].strip()
+
+                    # 保存到缓存
+                    if use_cache and text:
+                        self.cache.set(audio_path, model_name, text)
+
+                    self.logger.info(f"CPU 转录完成，文本长度: {len(text)} 字符")
+                    return text
+
+                except Exception as cpu_error:
+                    self.logger.error(f"CPU 回退也失败: {cpu_error}")
+                    raise
+            else:
+                raise
 
     def get_available_models(self) -> list[str]:
         """

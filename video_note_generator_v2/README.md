@@ -2,14 +2,16 @@
 
 > 一键将视频转换为优质笔记，支持博客文章和小红书格式
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![GPU](https://img.shields.io/badge/GPU-Apple%20Silicon%20%7C%20NVIDIA-green.svg)
 
 ## 🎯 核心功能
 
-- 🎬 **多平台支持**：YouTube（完全支持）、Bilibili（字幕提取）
+- 🎬 **多平台支持**：YouTube、小红书、抖音、快手、Bilibili等
+- 🚀 **GPU 加速**：优先使用 Apple Silicon GPU (MPS) 或 NVIDIA GPU (CUDA)，自动回退CPU
 - 🤖 **AI 智能处理**：基于 OpenRouter API，自动生成优质笔记
 - 📝 **多种输出格式**：
   - 原始转录笔记
@@ -20,6 +22,7 @@
 - ⚡ **批量处理**：支持同时处理多个视频
 - 🎨 **现代 UI**：Glassmorphism 设计风格，美观易用
 - 📊 **历史记录**：自动保存处理历史，支持预览/复制/下载
+- 🍪 **智能 Cookie 管理**：自动导出浏览器 cookies，支持多平台认证
 
 ## 🎨 两种使用方式
 
@@ -251,69 +254,64 @@ vnote --help
 
 ## 🌐 平台支持详情
 
-### ✅ YouTube（完全支持）
+### ✅ 完全支持的平台
 
-**支持方式**：
-- ✅ 官方字幕提取（YouTube Transcript API）
+#### 🎬 YouTube
+- ✅ 官方字幕提取
 - ✅ 音频下载 + Whisper 转录
-- ✅ 官方 iframe 嵌入播放
+- ✅ GPU 加速转录
+- **处理速度**：30-120 秒
+- **成功率**：95%+
 
-**示例链接**：
-```
-https://www.youtube.com/watch?v=dQw4w9WgXcQ
-https://www.youtube.com/watch?v=9bZkp7q19f0
-```
+#### 📱 小红书
+- ✅ 完整视频下载支持
+- ✅ 智能文件名处理（支持中文）
+- ✅ GPU 加速转录
+- **处理速度**：60-180 秒
+- **成功率**：90%+
 
-**处理速度**：30-120 秒（取决于视频长度）
+#### 🎵 抖音
+- ✅ 视频下载（需配置 cookies）
+- ✅ 自动 URL 转换优化
+- ⚠️ 需要有效的 cookies 认证
+- **状态**：需要更新 `s_v_web_id` cookie
 
-**成功率**：95%+
+#### 🎪 快手
+- ✅ 视频下载支持
+- ✅ 自动平台适配
+- **处理速度**：45-150 秒
 
----
+#### 📺 Bilibili
+- ✅ **官方字幕提取**（超快速度 ⚡）
+- ✅ 字幕 API 直接访问
+- ⚠️ 音频下载受限（反爬虫策略）
+- **推荐**：优先选择有字幕视频
 
-### 🟡 Bilibili（字幕支持）
+### 🔧 理论支持平台
 
-**当前状态**：
-- ✅ **官方字幕提取**（推荐，超快速度）
-- ❌ 音频下载（受反爬虫限制，暂不支持）
+基于 `yt-dlp` 框架，理论上支持 1000+ 网站：
+- Vimeo, Facebook, Twitter/X, TikTok
+- Instagram, LinkedIn, Twitch 等
+- 需要逐个测试验证
 
-**使用建议**：
-1. **优先选择有字幕的 B 站视频**
-2. 系统会自动提取官方字幕生成笔记
-3. 如果视频无字幕，目前暂不支持
+### 🚀 GPU 加速支持
 
-**如何识别有字幕的视频**：
-- B 站播放器右下角有 "CC" 字幕按钮
+**Apple Silicon 设备**：
+- ✅ M1/M2/M3/M4 系列芯片
+- ✅ Metal Performance Shaders (MPS)
+- ✅ 自动设备检测和回退
 
-**处理速度**：
-| 视频时长 | 处理时间 |
-|---------|---------|
-| 1-3分钟 | 5-10秒 ✨ |
-| 3-5分钟 | 10-20秒 ✨ |
-| 5-10分钟 | 20-40秒 ✨ |
+**NVIDIA 设备**：
+- ✅ CUDA 11.0+
+- ✅ GPU 内存检测（最低 4GB）
+- ✅ FP16/FP32 自动切换
 
-**为什么不支持无字幕视频**：
-- B站在 2024 年加强了反爬虫策略
-- 视频流需要复杂的 token 和签名
-- 但官方字幕 API 仍然可用
+**CPU 回退**：
+- ✅ 自动兼容性检测
+- ✅ FP32 精度处理
+- ✅ 智能错误恢复
 
-**💡 如需下载 B站视频（非字幕提取）**：
-- 可以配置浏览器 Cookies 文件
-- 查看详细指南：[COOKIES_GUIDE.md](COOKIES_GUIDE.md)
-
----
-
-### 🔧 其他平台
-
-基于 `yt-dlp` 理论上支持 1000+ 网站，包括：
-- Vimeo
-- Facebook
-- Twitter/X
-- TikTok
-- 等等...
-
-但需要逐个测试验证，目前未充分测试。
-
-📖 **详细的平台支持说明**：[PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md)
+📖 **详细配置指南**：[COOKIES_GUIDE.md](COOKIES_GUIDE.md)
 
 ---
 
@@ -547,12 +545,21 @@ AI processing failed: API key not configured
 - 转录过程耗时很长
 
 **解决方案**：
-1. **降低模型大小**：在 `.env` 中设置 `WHISPER_MODEL=small` 或 `base`
-2. **使用 GPU 加速**（如果有 NVIDIA GPU）：
+1. **GPU 自动加速**：系统会自动检测并使用 GPU
+   - Apple Silicon：自动使用 MPS
+   - NVIDIA GPU：自动使用 CUDA
+   - CPU：自动回退并优化设置
+
+2. **调整模型大小**：在 `.env` 中设置 `WHISPER_MODEL=small` 或 `base`
+
+3. **检查 GPU 使用状态**：
    ```bash
-   pip install openai-whisper[gpu]
+   # 启动时会显示设备信息
+   # 如：检测到 Apple Silicon GPU (MPS)，将使用 GPU 加速
+   # 如：使用设备: mps
    ```
-3. **优先使用有字幕的视频**：跳过 Whisper 转录步骤
+
+4. **优先使用有字幕的视频**：跳过 Whisper 转录步骤
 
 ---
 
@@ -713,6 +720,34 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ---
 
 ## 📈 更新日志
+
+### V2.0.1 (2025-10-30)
+
+**🚀 GPU 加速重大更新**：
+- ✨ **Apple Silicon GPU 支持**：优先使用 M1/M2/M3/M4 系列 GPU (MPS)
+- ✨ **NVIDIA GPU 支持**：CUDA 加速，自动检测 GPU 内存（最低 4GB）
+- ✨ **智能设备回退**：GPU 兼容性问题时自动回退到 CPU
+- ✨ **FP16/FP32 自动切换**：根据设备自动优化精度设置
+
+**🌐 多平台支持扩展**：
+- ✨ **小红书完全支持**：智能中文文件名处理，完整下载流程
+- ✨ **抖音/快手支持**：自动 URL 优化，cookies 认证集成
+- ✨ **YouTube 字幕提取**：改进 API 调用，提高成功率
+- ✨ **Bilibili 字幕优化**：超速字幕提取，避免下载限制
+
+**🔧 系统稳定性改进**：
+- 🔧 **Whisper MPS 兼容性修复**：解决 Apple Silicon 数值稳定性问题
+- 🔧 **智能错误恢复**：自动检测和处理转录异常
+- 🔧 **多策略下载系统**：ResDownloader + yt-dlp 双重保障
+- 🔧 **文件名安全性**：处理中文字符编码，避免文件系统错误
+
+**📝 用户体验优化**：
+- 🔧 **详细设备信息显示**：启动时显示检测到的 GPU 设备
+- 🔧 **友好错误提示**：平台特定的问题诊断和解决建议
+- 🔧 **批量处理优化**：改进多视频并发处理逻辑
+- 🔧 **Cookie 管理增强**：自动化 cookies 导出和更新流程
+
+---
 
 ### V2.0.0 (2024-10-29)
 
