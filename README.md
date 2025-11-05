@@ -45,12 +45,16 @@
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 
-## 👤 作者信息
+## Huggingface space: [rednote-gen](https://huggingface.co/spaces/windane/rednote-gen)
+PS: 最好还是本地运行，Space 直接下载视频失败率高，可以使用MD文件解析。
+
+## 👤 原作者信息
 
 - **作者**：玄清
 - **博客**：[天天悦读](https://blog.example.com)
 - **Email**：grow8org@gmail.com
 - **GitHub**：[whotto/Video_note_generator](https://github.com/whotto/Video_note_generator)
+
 
 ## 🎯 应用场景
 
@@ -96,24 +100,12 @@ graph TD
 
 ## 🚀 使用方式
 
-支持三种使用方式：
-
-1. **处理单个视频**：
-```bash
-python video_note_generator.py https://example.com/video
+启动 WebUI:
+```shell
+$ python web.py
 ```
 
-2. **批量处理 URL 文件**：
-```bash
-# urls.txt 文件，每行一个视频链接
-python video_note_generator.py urls.txt
-```
-
-3. **处理 Markdown 文件**：
-```bash
-# 支持 Markdown 链接和直接 URL
-python video_note_generator.py notes.md
-```
+打开：http://127.0.0.1:7860
 
 ## 🛠️ 使用工具
 
@@ -134,40 +126,13 @@ python video_note_generator.py notes.md
 
 # 安装 Python 依赖
 pip install -r requirements.txt
-
-# 配置环境变量
-cp .env.example .env
-```
-
-### 2. 配置 API 密钥
-
-编辑 `.env` 文件，填入必要的 API 密钥：
-```ini
-# OpenRouter API（必需）
-OPENROUTER_API_KEY=your-api-key-here
-
-# Unsplash API（必需）
-UNSPLASH_ACCESS_KEY=your-unsplash-access-key-here
-UNSPLASH_SECRET_KEY=your-unsplash-secret-key-here
-```
-
-### 3. 开始使用
-
-1. 创建 `urls.txt` 文件，每行一个视频链接
-2. 运行环境检查：
-```bash
-python check_environment.py
-```
-3. 运行生成器：
-```bash
-python video_note_generator.py test.md
 ```
 
 ## 📄 输出文件
 
 每个视频会生成三个文件：
 
-1. **原始笔记** (`YYYYMMDD_HHMMSS.md`)：
+1. **原始笔记** ：
    - 完整的视频转录文本
    - 保留所有细节内容
 
@@ -185,13 +150,17 @@ python video_note_generator.py test.md
 
 ## ⚙️ 配置说明
 
-在 `.env` 文件中可以调整以下参数：
+在设置页面填写必要的 API Key：
+- OpenRouter API（必需）
+- Unsplash API （建议）
 
-```ini
-# 内容生成配置
+还有其他设置：
+
+```
 MAX_TOKENS=2000          # 生成小红书内容的最大长度
 CONTENT_CHUNK_SIZE=2000  # 长文本分块大小（字符数）
 TEMPERATURE=0.7          # AI 创造性程度 (0.0-1.0)
+
 
 # 代理设置（可选）
 # HTTP_PROXY=http://127.0.0.1:7890
